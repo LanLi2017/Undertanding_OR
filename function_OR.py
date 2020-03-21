@@ -88,7 +88,7 @@ class Operation:
 
     def split_col_op(self,old_col,regex=',',keep_old=True):
         # split
-        new_df = pd.concat(self.D[old_col].str.split(regex, expand=True), axis=1, keys=self.D.columns)
+        new_df = pd.concat([self.D[old_col].str.split(regex, expand=True)], axis=1,keys=[old_col])
         new_df.columns = new_df.columns.map(lambda x: '_'.join((x[0], str(x[1]))))
         new_df = new_df.replace({'': np.nan, None: np.nan})
         if keep_old:
@@ -101,8 +101,14 @@ class Operation:
             self.base_del_col_op(old_col)
             self.D = pd.concat([self.D, new_df], axis=1)
 
-    def rename_col_op(self):
-        pass
+    def rename_col_op(self,new_name,old_col,old_col_idx):
+        # table + add/copy column(new name,same position) + delete old column
+        self.base_add_col_op(new_name,old_col,old_col_idx,copy=True)
+        self.base_del_col_op(old_col)
+
+    def output_data(self,name):
+        self.D.to_csv(f'{name}.csv',index=False)
+        return self.D
 
     def cell_pos(self):
         # cell index
@@ -122,116 +128,41 @@ class Operation:
         pass
 
 
-class DTA:
-    '''
-    存储数据，只做内部转换
-    函数写外面，2个DTA??
-    发现外部过于Messy
-    '''
-    def __init__(self):
-        # 传入数据集，
-        # five parameters for dataset
-        self.R= dict() # regular expression for each column
-        self.L=Counter() # (value, count)
-        self.I=set() # row set
-        self.J=set() # column set
-        self.S={} # structuring func: content -> row&col indices
-        self.data_space=set() # current dataset
-
-    def data_regex(self,data_p):
-
-        return self.R
-
-    def data_content(self,data_p):
-        data = []
-        with open(data_p, 'r')as csvfile:
-            csvreader = csv.reader(csvfile)
-            next(csvreader) # remove header
-            for row in csvreader:
-                data += row
-        '''
-        L:  {(value,frequency),...}
-        series.value_counts
-        '''
-        self.L=Counter(data)
-
-    def row_column_index(self,data_p):
-        df=pd.read_csv(data_p)
-        row_length=df.shape[0]
-        column_length=df.shape[1]
-        self.I=set(range(row_length))
-        self.J=set(range(column_length))
-
-    def structuring_func(self,data_p):
-        # S: {c -> (i,j)}
-        # self.S = np.cross(self.I, self.J)
-        data = np.genfromtxt(data_p, dtype=None, delimiter=',', encoding='utf-8')
-        print(data)
-        for index, x in np.ndenumerate(data):
-            self.S[x] = index
-
-    def dataset_space(self):
-        self.D = (self.R, self.L, self.S, self.I, self.J)
-
-
-class Toolkit:
-    def __init__(self):
-        pass
-
-    def signature_set(self,prev_data_sp, cur_data_sp):
-        # return difference in data spaces of ops-
-        # prev_data_sp: previous data space
-        # prev_dsp_list: previous data space list
-        # cur_data_sp: current data space
-        # cur_dsp_list: current data space list
-        # sig_set: signature set, unifying data space states changes from previous to current
-        sig_set = []
-        prev_dsp_list = []
-        cur_dsp_list = []
-        for i in range(len(prev_data_sp)):
-            # pair = []
-            if prev_data_sp[i] != cur_data_sp[i]:
-                prev_dsp_list.append(prev_data_sp[i])
-                cur_dsp_list.append(cur_data_sp[i])
-        sig_set += (prev_dsp_list, cur_dsp_list)
-
-        return sig_set
-
-    def shallow_trans(self,sig_set):
-        '''
-        input signature set
-        :return: boolean
-        '''
-
-        pass
-
-    def deep_trans(self):
-        pass
-
-    def identity_trans(self):
-        pass
-
-    def equal(self):
-        # two data spaces are equal
-        pass
-
-
 def main():
-    data_p=''
+    data_p='temp_table.csv'
     OPS1=Operation()
+    OPS1.pd_csv(data_p)
+    OPS1.base_del_row_op(2)
+    OPS1.base_add_col_op('color_style_copy','color_style',3)
+    OPS1.split_col_op('color_style_copy','_')
+    OPS1.base_del_col_op('color_style_copy')
+    OPS1.rename_col_op('uID','id',0)
+    df1=OPS1.output_data('OPS1')
+
     '''
     op_list1: 
     1. drop row 2
     2. copy column "color_style" , new name "color_style_copy"
     3. split column "color_style_copy", regex= "_", keep_origin= True
     4. del column "color_style_copy"
+    5. rename column "id" to "uID"
     
     '''
+    OPS2=Operation()
+    OPS2.pd_csv(data_p)
+    OPS2.rename_col_op('uID','id',0)
+    OPS2.base_add_col_op('color_style_copy','color_style',3)
+    OPS2.base_del_row_op(2)
+    OPS2.split_col_op('color_style_copy','_',keep_old=False)
+
+    df2=OPS2.output_data('OPS2')
+
     '''
     op_list2:
-    1. copy column "color_style" , new name "color_style_copy"
-    2. drop row 2
-    3. split column "color_style_copy", regex= "_", keep_origin = False
+    1. rename "id" to "uID"
+    2. copy column "color_style" , new name "color_style_copy"
+    3. drop row 2
+    4. split column "color_style_copy", regex= "_", keep_origin = False
 
     '''
     '''
@@ -253,9 +184,7 @@ def main():
     ?
     
     '''
-
-
-    pass
+    print(df1.equals(df2))
 
 
 if __name__=='__main__':
