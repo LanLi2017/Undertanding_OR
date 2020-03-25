@@ -6,24 +6,7 @@ import pandas as pd
 
 
 class Operation:
-    # 定义了什么操作：传入一个数据集， 通过这个大函数 能得到另外一个数据集
-    # 对于任意一个OPERATION集合路径，都可以调用 split-simplify-.py
-    # 有几个OPERATION就写几个函数； 而且这里的OPS都是大OP（需要细分）, 必须要调用BASE OP
-    # 细分路径 -> BASE_OP
-
-    # OP1 -> OP2 -> OP3 (ori)
-    # OP1 -> OP3 -> OP2
-    # OP2 -> OP1 -> OP3  (OP1 AND OP3 dependency)
-    # enumeration (ALL relationship of transformations)-> EQUAL (路径)
-    # FUNC: 判断是否是相同效果路径
-    # 1. INPUT 数据集+路径--》 看结果判断是否相同
-    # 优化： 作弊：数据本身的关系/
-    # 1.解决方法： 虚拟数据集（10个）来判断： 减少因为真实数据本身产生问题； 减少数据的大小
-    # 缺点： 和真实数据之间的区别造成转化不能操作，不能完全模拟
-    # 2.解决方法： 简化排序： 提出所有小操作，然后增加； OP1 和 OP2, 分别拆分（）和排序（比如COLUMN INDEX）
-    # (1,3) (2)
-    # OP1 / OP2 / OP3
-    # BASE OP （要么对行， 要么对列， 要么对整体 （乘法），第I,J先不管）: 其他OP基于BASE OP
+    # decompose operations into basic ones
 
     def __init__(self):
         self.D=pd.DataFrame() # initialize new data frame
@@ -90,12 +73,8 @@ class Operation:
         # old_col: old position column name
         # copy add
         self.base_add_col_op(new_col,old_col,insert_idx,copy=True)
-        record1 = {'column':f'+ {new_col}'}
-        self.dependency.append(record1)
         # delete
         self.base_del_col_op(old_idx)
-        record2 = {'column': f'- {old_col}'}
-        self.dependency.append(record2)
 
     def split_col_op(self,old_col,regex=',',keep_old=True):
         # split
@@ -120,11 +99,7 @@ class Operation:
     def rename_col_op(self,new_name,old_col,old_col_idx):
         # table + add/copy column(new name,same position) + delete old column
         self.base_add_col_op(new_name,old_col,old_col_idx,copy=True)
-        record1 = {'column': f'+ {new_name}'}
-        self.dependency.append(record1)
         self.base_del_col_op(old_col)
-        record2 = {'column': f'- {old_col}'}
-        self.dependency.append(record2)
 
     # Cell level
     def cell_mass_edit(self,expression,col_name):
@@ -197,7 +172,8 @@ def main():
     OPS1.split_col_op('color_style_copy','_')
     OPS1.base_del_col_op('color_style_copy')
     OPS1.rename_col_op('uID','id',0)
-    df1=OPS1.output_data('OPS1')
+    # df1=OPS1.output_data('OPS1')
+    print(OPS1.dependency)
 
     '''
     op_list1: 
