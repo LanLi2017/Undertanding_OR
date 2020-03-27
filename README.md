@@ -1,4 +1,4 @@
-# Undertanding_OR
+# Understanding_OR
 understanding operations in OpenRefine 
 
 Given multiple/two more data cleaning recipes in OpenRefine
