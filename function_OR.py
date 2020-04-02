@@ -1,8 +1,5 @@
-import csv
 import os
 from datetime import datetime
-from collections import Counter
-from pprint import pprint
 
 import numpy as np
 import pandas as pd
@@ -19,19 +16,7 @@ class Operation:
         '''
         self.D = D # initialize new data frame
 
-        # initialize previous data path
-        # self.prev_data_p = data_p
-
-        # yw file path
-        # self.yw = ywfile_p
-
-        # count data cleaning steps
-        # self.counter = 0
-        # dependency list for creating dependency tree
         self.dependency = list()
-
-    # def pd_csv(self,data_p):
-    #     self.D = pd.read_csv(data_p)
 
     def row_idx_change(self,col_name, expression):
         # return the changed cell with row index
@@ -48,36 +33,15 @@ class Operation:
         input dataset
         :return: output dataset/ stringIO / List
         '''
-        # self.counter += 1
-        # self.yw.write(f"#@begin delete-row @desc delete row {row_idx}\n")
-        # self.yw.write(f"#@param row:{row_idx}\n")
-        # self.yw.write("#@param Symbol:-\n")
         self.D = self.D.drop(row_idx)
-        # self.yw.write(f"#@in wf_step:{self.counter}\n")
-        # self.yw.write(f"#@in {self.prev_data_p}\n")
-        #
-        # # current data_p
-        # current_data_p = f'temp_out/del_row_op_{row_idx}_step_{self.counter}.csv'
-        # # save the temporary outputs
-        # self.save_temp(current_data_p)
-        #
-        # self.yw.write(f"#@out {current_data_p}\n")
 
         record = { 'row': f'- {row_idx}'}
         self.dependency.append(record)
-
-        # self.yw.write("#@end delete-row\n")
-        #
-        # # update previous path
-        # self.prev_data_p = current_data_p
         return self.D
 
     # column level
     def del_col(self,drop_col):
-        ''' A (COUNT) B () C ()
-        A:3 B:5 C:7
-        质数相加，唯一性？
-        add column
+        '''
         # copy column
         delete column
         # rename column
@@ -273,10 +237,11 @@ class YW(Operation):
 
 
 def main():
+    # INPUT DATA PATH
     data_p='Data_input.csv'
     D = pd.read_csv(data_p,index_col=0)
 
-    # create different output packages according to time stamps
+    # create different output packages WITH time stamps
     now = datetime.now()
     # time stamp: month_day_hour_minute
     timetag = now.strftime("%m_%d_%H_%M")
@@ -284,7 +249,7 @@ def main():
     dir_dc_steps = f'temp_out_{timetag}'
     os.makedirs(f"{dir_dc_steps}", exist_ok=True)
 
-    # final yw file dir
+    # yw file dir
     ywfile_out = f'yw_out_{timetag}'
     os.makedirs(f"{ywfile_out}", exist_ok=True)
 
@@ -295,5 +260,5 @@ def main():
         yw.del_col("amount")
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
     main()
