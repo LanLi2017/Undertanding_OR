@@ -10,7 +10,7 @@ import numpy as np
 # I=(int(9))
 # print(I)
 # J=(0,1,2)
-df=pd.read_csv('temp_table.csv')
+df=pd.read_csv('Data_input.csv')
 new_col=[4,5,3,4,5,6,2,1]
 df.insert(loc=1,column='number',value=new_col)
 print(df)
@@ -44,7 +44,7 @@ class Operation:
 #         print(value,':',count)
 # print(df['name'].value_counts())
 # data=[]
-# with open('temp_table.csv','r')as csvfile:
+# with open('Data_input.csv','r')as csvfile:
 #     csvreader = csv.reader(csvfile)
 #     next(csvreader)
 #     for row in csvreader:

@@ -1,4 +1,6 @@
 import csv
+import os
+from datetime import datetime
 from collections import Counter
 from pprint import pprint
 
@@ -9,18 +11,24 @@ import pandas as pd
 class Operation:
     # decompose operations into basic ones
 
-    def __init__(self, D, ywfile_p, data_p):
+    def __init__(self, D):
+        '''
+        D: DataFrame
+        ywfile_p: yw file path
+        data_p: inter-product path
+        '''
         self.D = D # initialize new data frame
 
         # initialize previous data path
-        self.prev_data_p = data_p
-        self.dependency=list()
+        # self.prev_data_p = data_p
 
         # yw file path
-        self.yw = ywfile_p
+        # self.yw = ywfile_p
 
         # count data cleaning steps
-        self.counter = 0
+        # self.counter = 0
+        # dependency list for creating dependency tree
+        self.dependency = list()
 
     # def pd_csv(self,data_p):
     #     self.D = pd.read_csv(data_p)
@@ -31,13 +39,8 @@ class Operation:
             if value != value.expression():
                 return index
 
-    def save_temp(self, data_p):
-        # save the temporary inter-products
-        self.D.to_csv(f'{data_p}.csv', index=False)
-        return self.D
-
     # row level
-    def base_del_row_op(self,prev_data_p, row_idx):
+    def del_row(self, row_idx):
         '''
         # copy row (value + position)
         delete row (position)
@@ -45,32 +48,32 @@ class Operation:
         input dataset
         :return: output dataset/ stringIO / List
         '''
-        self.counter += 1
-        self.yw.write(f"#@begin delete-row @desc delete row {row_idx}\n")
-        self.yw.write(f"#@param row:{row_idx}\n")
-        self.yw.write("#@param Symbol:-\n")
+        # self.counter += 1
+        # self.yw.write(f"#@begin delete-row @desc delete row {row_idx}\n")
+        # self.yw.write(f"#@param row:{row_idx}\n")
+        # self.yw.write("#@param Symbol:-\n")
         self.D = self.D.drop(row_idx)
-        self.yw.write(f"#@in wf_step:{self.counter}\n")
-        self.yw.write(f"#@in {self.prev_data_p}\n")
-
-        # current data_p
-        current_data_p = f'temp_out/del_row_op_{row_idx}_step_{self.counter}.csv'
-        # save the temporary outputs
-        self.save_temp(current_data_p)
-
-        self.yw.write(f"#@out {current_data_p}\n")
+        # self.yw.write(f"#@in wf_step:{self.counter}\n")
+        # self.yw.write(f"#@in {self.prev_data_p}\n")
+        #
+        # # current data_p
+        # current_data_p = f'temp_out/del_row_op_{row_idx}_step_{self.counter}.csv'
+        # # save the temporary outputs
+        # self.save_temp(current_data_p)
+        #
+        # self.yw.write(f"#@out {current_data_p}\n")
 
         record = { 'row': f'- {row_idx}'}
         self.dependency.append(record)
 
-        self.yw.write("#@end delete-row\n")
-
-        # update previous path
-        self.prev_data_p = current_data_p
+        # self.yw.write("#@end delete-row\n")
+        #
+        # # update previous path
+        # self.prev_data_p = current_data_p
         return self.D
 
     # column level
-    def base_del_col_op(self,drop_col):
+    def del_col(self,drop_col):
         ''' A (COUNT) B () C ()
         A:3 B:5 C:7
         质数相加，唯一性？
@@ -82,11 +85,12 @@ class Operation:
         # move column: copy + position & delete
         :return:
         '''
-        self.D = self.D.drop(columns=drop_col)
+        self.D = self.D.drop(drop_col,axis=1)
         record = {'column': f'- {drop_col}'}
         self.dependency.append(record)
+        return self.D
 
-    def base_add_col_op(self,new_col,old_col,insert_idx,copy=True,*add_col_val):
+    def add_col(self,new_col,old_col,insert_idx,copy=True,*add_col_val):
         # new column name
         # old column name
         # new column position
@@ -102,17 +106,17 @@ class Operation:
             for arg in add_col_val:
                 self.D.insert(loc=insert_idx,column=new_col, value=arg)
 
-    def move_col_op(self,insert_idx,old_idx,new_col,old_col):
+    def move_col(self,insert_idx,old_idx,new_col,old_col):
         # insert_idx: move the column to new position
         # old_idx: delete the old position column
         # new_col: new name for moving column
         # old_col: old position column name
         # copy add
-        self.base_add_col_op(new_col,old_col,insert_idx,copy=True)
+        self.add_col(new_col,old_col,insert_idx,copy=True)
         # delete
-        self.base_del_col_op(old_idx)
+        self.del_col(old_idx)
 
-    def split_col_op(self,old_col,regex=',',keep_old=True):
+    def split_col(self,old_col,regex=',',keep_old=True):
         # split
         new_df = pd.concat([self.D[old_col].str.split(regex, expand=True)], axis=1,keys=[old_col])
         new_df.columns = new_df.columns.map(lambda x: '_'.join((x[0], str(x[1]))))
@@ -127,15 +131,15 @@ class Operation:
             # self.D[]=self.D[]
         else:
             # the whole table - old_col +new generated columns
-            self.base_del_col_op(old_col)
+            self.del_col(old_col)
             record1 = {'column': f'-{old_col}'}
             self.dependency.append(record1)
             self.D = pd.concat([self.D, new_df], axis=1)
 
-    def rename_col_op(self,new_name,old_col,old_col_idx):
+    def rename_col(self,new_name,old_col,old_col_idx):
         # table + add/copy column(new name,same position) + delete old column
-        self.base_add_col_op(new_name,old_col,old_col_idx,copy=True)
-        self.base_del_col_op(old_col)
+        self.add_col(new_name,old_col,old_col_idx,copy=True)
+        self.del_col(old_col)
 
     # Cell level
     def cell_mass_edit(self,expression,col_name):
@@ -181,7 +185,7 @@ class Operation:
         record = {'cell': (row_idx, col_name)}
         self.dependency.append(record)
 
-    def split_simplify_op(self):
+    def split_simplify(self):
         # 对于任何一个operation， 首先进行拆分简化，通过排序来比较路径是否相等
         # 任何OPERATION调用他以后都能得到一个简化版的细分路径/BASE OPS
         # reverse narrow: 哪些操作是相反的
@@ -194,101 +198,101 @@ class Operation:
     def topology_(self):
         pass
 
-    def output_data(self, name):
-        self.D.to_csv(f'{name}.csv', index=False)
-        return self.D
-
 
 class DependencyTree:
     def __init__(self):
         pass
 
-#
-# class YW(Operation):
-#     def __init__(self, D, ywfile):
-#
-#         # prior state of data
-#         super().__init__(D)
-#         self.yw = ywfile
-#
-#     def base_del_row_op_yw(self, D, row_idx):
-#         self.yw.write(f"#@begin delete-row @desc delete row {row_idx} \n")
-#         self.yw.write(f"#@param row:{row_idx} \n")
-#         self.yw.write(f"#@in {D}\n")
-#         print(D)
-#         print(type(D))
-#         D_0 = super().__init__(D)
-#         self.D_1 = Operation.base_del_row_op(D_0,row_idx)
-#         self.yw.write("#@end delete-row\n")
-#         return self.D_1
+
+class YW(Operation):
+    def __init__(self,  D, ywfile_p, data_p, dir):
+
+        # D_0 : prev dataframe
+        # ywfile_p : yw file path
+        # data_p : inter-product path
+        super().__init__(D)
+
+        self. D_0 = D
+
+        # initialize previous data path
+        self.prev_data_p = data_p
+
+        # yw file path
+        self.yw = ywfile_p
+
+        # count data cleaning steps
+        self.counter = 0
+
+        self.dir = dir
+
+    def save_temp(self, data_p):
+        # save the temporary inter-products
+        self.D_0.to_csv(f'{data_p}.csv', index=False)
+
+    def del_row(self, row_idx):
+        self.counter += 1
+        self.yw.write(f"#@begin delete-row @desc delete row {row_idx}\n")
+        self.yw.write(f"#@param row:{row_idx}\n")
+        self.yw.write("#@param Symbol:-\n")
+        self.D_0 = super().del_row(row_idx)
+        self.yw.write(f"#@param wf_step:{self.counter}\n")
+        self.yw.write(f"#@in {self.prev_data_p}\n")
+
+        # current data_p
+        current_data_p = f'{self.dir}/del_row_{row_idx}_step_{self.counter}.csv'
+        # save the temporary outputs
+        self.save_temp(current_data_p)
+
+        self.yw.write(f"#@out {current_data_p}\n")
+        self.yw.write("#@end delete-row\n")
+
+        # update previous path
+        self.prev_data_p = current_data_p
+        return self.D_0
+
+    def del_col(self,drop_col):
+        self.counter += 1
+        self.yw.write(f"#@begin delete-column @desc delete column {drop_col}\n")
+        self.yw.write(f"#@param column:{drop_col}\n")
+        self.yw.write("#@param Symbol:-\n")
+        self.D_0 = super().del_col(drop_col=drop_col)
+        self.yw.write(f"#@param wf_step:{self.counter}\n")
+        self.yw.write(f"#@in {self.prev_data_p}\n")
+
+        # current data_p
+        current_data_p = f'{self.dir}/del_col_{drop_col}_step_{self.counter}.csv'
+        # save the temporary outputs
+        self.save_temp(current_data_p)
+
+        self.yw.write(f"#@out {current_data_p}\n")
+        self.yw.write("#@end delete-column\n")
+
+        # update previous path
+        self.prev_data_p = current_data_p
+        return self.D_0
 
 
 def main():
-    data_p='temp_table.csv'
-    D = pd.read_csv(data_p)
-    # OPS1=Operation(D)
-    # OPS1.pd_csv(data_p)
-    # OPS1.base_del_row_op(2)
-    ywfile_p = "testyw.txt"
+    data_p='Data_input.csv'
+    D = pd.read_csv(data_p,index_col=0)
 
-    with open(ywfile_p, 'w')as f:
-        yw = Operation(D, f,ywfile_p)
-        yw.base_del_row_op(ywfile_p, 2)
+    # create different output packages according to time stamps
+    now = datetime.now()
+    # time stamp: month_day_hour_minute
+    timetag = now.strftime("%m_%d_%H_%M")
+    # top directory for storing data cleaning steps
+    dir_dc_steps = f'temp_out_{timetag}'
+    os.makedirs(f"{dir_dc_steps}", exist_ok=True)
 
+    # final yw file dir
+    ywfile_out = f'yw_out_{timetag}'
+    os.makedirs(f"{ywfile_out}", exist_ok=True)
 
-    # OPS1.base_add_col_op('color_style_copy','color_style',3)
-    # OPS1.split_col_op('color_style_copy','_')
-    # OPS1.base_del_col_op('color_style_copy')
-    # OPS1.rename_col_op('uID','id',0)
-    # # df1=OPS1.output_data('OPS1')
-    # pprint(OPS1.dependency)
-
-    '''
-    op_list1: 
-    1. drop row 2
-    2. copy column "color_style" , new name "color_style_copy"
-    3. split column "color_style_copy", regex= "_", keep_origin= True
-    4. del column "color_style_copy"
-    5. rename column "id" to "uID"
-    
-    # '''
-    # OPS2=Operation()
-    # OPS2.pd_csv(data_p)
-    # OPS2.rename_col_op('uID','id',0)
-    # OPS2.base_add_col_op('color_style_copy','color_style',3)
-    # OPS2.base_del_row_op(2)
-    # OPS2.split_col_op('color_style_copy','_',keep_old=False)
-    #
-    # df2=OPS2.output_data('OPS2')
-
-    '''
-    op_list2:
-    1. rename "id" to "uID"
-    2. copy column "color_style" , new name "color_style_copy"
-    3. drop row 2
-    4. split column "color_style_copy", regex= "_", keep_origin = False
-
-    '''
-    '''
-    op1 transfer:
-    1. drop row 2 : table - row_2
-    2. add column "colo  r_style_copy" : table - row_2 + col_"color_style_copy"
-    3. table - row_2 + col_"color_style_copy" + new_generated_columns
-    4. table - row_2 + col_"color_style_copy" + new_generated_columns - col_"color_style_copy"
-    
-    op2 transfer:
-    1. add column "color_style_copy" : table + col_"color_style_copy"
-    2. drop row 2:  table + col_"color_style_copy" - row_2
-    3.  table + col_"color_style_copy" - row_2 + (new_generated_columns - col_"color_style_copy")
-    
-    Q & A
-    table - row_2 + col_"color_style_copy" + new_generated_columns - col_"color_style_copy"
-    equal to 
-    table + col_"color_style_copy" - row_2 + (new_generated_columns - col_"color_style_copy")
-    ?
-    LOSE INFORMATION ABOUT SEMANTIC understanding 
-    '''
-    # print(df1.equals(df2))
+    # column name!!!
+    with open(f'{ywfile_out}/yw.txt', 'w')as f:
+        yw = YW(D, f, data_p,dir_dc_steps)
+        yw.del_row(2)
+        yw.del_col("amount")
 
 
 if __name__=='__main__':

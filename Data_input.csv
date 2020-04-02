@@ -1,0 +1,9 @@
+id,name,color_style,country,city,amount
+1,Banana,yellow_long, U.S.,Champaign, 3
+2,Apple,red_big,China,Jiyuan,2
+3,lichi,white_small, China,Guangzhou, 6
+4,Apple,green_circle, America, N.Y., 8
+5,pineapple,green_Ellipse, United States, New York, 10
+6,pineapple,yellow_square, United States, D.C., 23
+7,mango,red_ellipse, England, London,0
+8,date,red_circle, Germany, Munich,20

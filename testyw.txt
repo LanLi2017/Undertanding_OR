@@ -1,7 +1,0 @@
-#@begin delete-row @desc delete row 2
-#@param row:2
-#@param Symbol:-
-#@in wf_step:1
-#@in testyw.txt
-#@out temp_out/del_row_op_2_step_1.csv
-#@end delete-row
