@@ -1,5 +1,6 @@
 import csv
 from collections import Counter
+from pprint import pprint
 
 import numpy as np
 import pandas as pd
@@ -8,12 +9,21 @@ import pandas as pd
 class Operation:
     # decompose operations into basic ones
 
-    def __init__(self):
-        self.D=pd.DataFrame() # initialize new data frame
+    def __init__(self, D, ywfile_p, data_p):
+        self.D = D # initialize new data frame
+
+        # initialize previous data path
+        self.prev_data_p = data_p
         self.dependency=list()
 
-    def pd_csv(self,data_p):
-        self.D = pd.read_csv(data_p)
+        # yw file path
+        self.yw = ywfile_p
+
+        # count data cleaning steps
+        self.counter = 0
+
+    # def pd_csv(self,data_p):
+    #     self.D = pd.read_csv(data_p)
 
     def row_idx_change(self,col_name, expression):
         # return the changed cell with row index
@@ -21,8 +31,13 @@ class Operation:
             if value != value.expression():
                 return index
 
+    def save_temp(self, data_p):
+        # save the temporary inter-products
+        self.D.to_csv(f'{data_p}.csv', index=False)
+        return self.D
+
     # row level
-    def base_del_row_op(self,row_idx):
+    def base_del_row_op(self,prev_data_p, row_idx):
         '''
         # copy row (value + position)
         delete row (position)
@@ -30,9 +45,29 @@ class Operation:
         input dataset
         :return: output dataset/ stringIO / List
         '''
+        self.counter += 1
+        self.yw.write(f"#@begin delete-row @desc delete row {row_idx}\n")
+        self.yw.write(f"#@param row:{row_idx}\n")
+        self.yw.write("#@param Symbol:-\n")
         self.D = self.D.drop(row_idx)
+        self.yw.write(f"#@in wf_step:{self.counter}\n")
+        self.yw.write(f"#@in {self.prev_data_p}\n")
+
+        # current data_p
+        current_data_p = f'temp_out/del_row_op_{row_idx}_step_{self.counter}.csv'
+        # save the temporary outputs
+        self.save_temp(current_data_p)
+
+        self.yw.write(f"#@out {current_data_p}\n")
+
         record = { 'row': f'- {row_idx}'}
         self.dependency.append(record)
+
+        self.yw.write("#@end delete-row\n")
+
+        # update previous path
+        self.prev_data_p = current_data_p
+        return self.D
 
     # column level
     def base_del_col_op(self,drop_col):
@@ -55,6 +90,7 @@ class Operation:
         # new column name
         # old column name
         # new column position
+        print("#@begin add column")
         record = {'column': f'+ {new_col}'}
         self.dependency.append(record)
         if copy:
@@ -163,17 +199,49 @@ class Operation:
         return self.D
 
 
+class DependencyTree:
+    def __init__(self):
+        pass
+
+#
+# class YW(Operation):
+#     def __init__(self, D, ywfile):
+#
+#         # prior state of data
+#         super().__init__(D)
+#         self.yw = ywfile
+#
+#     def base_del_row_op_yw(self, D, row_idx):
+#         self.yw.write(f"#@begin delete-row @desc delete row {row_idx} \n")
+#         self.yw.write(f"#@param row:{row_idx} \n")
+#         self.yw.write(f"#@in {D}\n")
+#         print(D)
+#         print(type(D))
+#         D_0 = super().__init__(D)
+#         self.D_1 = Operation.base_del_row_op(D_0,row_idx)
+#         self.yw.write("#@end delete-row\n")
+#         return self.D_1
+
+
 def main():
     data_p='temp_table.csv'
-    OPS1=Operation()
-    OPS1.pd_csv(data_p)
-    OPS1.base_del_row_op(2)
-    OPS1.base_add_col_op('color_style_copy','color_style',3)
-    OPS1.split_col_op('color_style_copy','_')
-    OPS1.base_del_col_op('color_style_copy')
-    OPS1.rename_col_op('uID','id',0)
-    # df1=OPS1.output_data('OPS1')
-    print(OPS1.dependency)
+    D = pd.read_csv(data_p)
+    # OPS1=Operation(D)
+    # OPS1.pd_csv(data_p)
+    # OPS1.base_del_row_op(2)
+    ywfile_p = "testyw.txt"
+
+    with open(ywfile_p, 'w')as f:
+        yw = Operation(D, f,ywfile_p)
+        yw.base_del_row_op(ywfile_p, 2)
+
+
+    # OPS1.base_add_col_op('color_style_copy','color_style',3)
+    # OPS1.split_col_op('color_style_copy','_')
+    # OPS1.base_del_col_op('color_style_copy')
+    # OPS1.rename_col_op('uID','id',0)
+    # # df1=OPS1.output_data('OPS1')
+    # pprint(OPS1.dependency)
 
     '''
     op_list1: 
@@ -204,7 +272,7 @@ def main():
     '''
     op1 transfer:
     1. drop row 2 : table - row_2
-    2. add column "color_style_copy" : table - row_2 + col_"color_style_copy"
+    2. add column "colo  r_style_copy" : table - row_2 + col_"color_style_copy"
     3. table - row_2 + col_"color_style_copy" + new_generated_columns
     4. table - row_2 + col_"color_style_copy" + new_generated_columns - col_"color_style_copy"
     
@@ -218,7 +286,7 @@ def main():
     equal to 
     table + col_"color_style_copy" - row_2 + (new_generated_columns - col_"color_style_copy")
     ?
-    
+    LOSE INFORMATION ABOUT SEMANTIC understanding 
     '''
     # print(df1.equals(df2))
 

@@ -10,7 +10,29 @@ import numpy as np
 # I=(int(9))
 # print(I)
 # J=(0,1,2)
-# df=pd.read_csv('temp_table.csv')
+df=pd.read_csv('temp_table.csv')
+new_col=[4,5,3,4,5,6,2,1]
+df.insert(loc=1,column='number',value=new_col)
+print(df)
+
+from functools import wraps
+
+
+def log_to_yw(func):
+    @wraps(func)
+    def wrapped(self, *args, **kwargs):
+        self.yw.write(func.__name__ + str(args) +str(kwargs))
+        return func(self, *args, **kwargs)
+    return wrapped
+
+
+class Operation:
+    @log_to_yw
+    def do_sth(self, a, b):
+        ...
+
+
+# decorator
 # df_shape=df.shape
 # print(type(df_shape))
 # (8,3)
