@@ -1,0 +1,55 @@
+
+/* Start of top-level graph */
+digraph Workflow {
+rankdir=TB
+
+/* Title for graph */
+fontname=Helvetica; fontsize=18; labelloc=t
+label=Hybrid_Prov_model
+
+/* Start of double cluster for drawing box around nodes in workflow */
+subgraph cluster_workflow_box_outer { label=""; color=black; penwidth=2
+subgraph cluster_workflow_box_inner { label=""; penwidth=0
+
+/* Style for nodes representing atomic programs in workflow */
+node[shape=box style=filled fillcolor="#CCFFCC" peripheries=1 fontname=Helvetica]
+
+/* Nodes representing atomic programs in workflow */
+"delete-row" [shape=record rankdir=LR label="{<f0> delete-row |<f1> delete row 2}"];
+"delete-column" [shape=record rankdir=LR label="{<f0> delete-column |<f1> delete column amount}"];
+
+/* Style for nodes representing non-parameter data channels in workflow */
+node[shape=box style="rounded,filled" fillcolor="#FFFFCC" peripheries=1 fontname=Helvetica]
+
+/* Nodes for non-parameter data channels in workflow */
+"temp_out_04_03_00_57/del_col_amount_step_2.csv"
+"Data_input.csv"
+"temp_out_04_03_00_57/del_row_2_step_1.csv"
+
+/* Style for nodes representing parameter channels in workflow */
+node[shape=box style="rounded,filled" fillcolor="#FCFCFC" peripheries=1 fontname=Helvetica]
+
+/* Nodes representing parameter channels in workflow */
+"row:2"
+"Symbol:-"
+"wf_step:1"
+"column:amount"
+"wf_step:2"
+
+/* Edges representing connections between programs and channels */
+"delete-row" -> "temp_out_04_03_00_57/del_row_2_step_1.csv"
+"row:2" -> "delete-row"
+"Symbol:-" -> "delete-row"
+"wf_step:1" -> "delete-row"
+"Data_input.csv" -> "delete-row"
+"delete-column" -> "temp_out_04_03_00_57/del_col_amount_step_2.csv"
+"column:amount" -> "delete-column"
+"Symbol:-" -> "delete-column"
+"wf_step:2" -> "delete-column"
+"temp_out_04_03_00_57/del_row_2_step_1.csv" -> "delete-column"
+
+/* End of double cluster for drawing box around nodes in workflow */
+}}
+
+/* End of top-level graph */
+}

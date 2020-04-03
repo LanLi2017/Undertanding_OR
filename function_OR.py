@@ -11,7 +11,7 @@ class Operation:
     def __init__(self, D):
         '''
         D: DataFrame
-        ywfile_p: yw file path
+        ywfile_p: Yesworkflow file path
         data_p: inter-product path
         '''
         self.D = D # initialize new data frame
@@ -172,7 +172,7 @@ class YW(Operation):
     def __init__(self,  D, ywfile_p, data_p, dir):
 
         # D_0 : prev dataframe
-        # ywfile_p : yw file path
+        # ywfile_p : Yesworkflow file path
         # data_p : inter-product path
         super().__init__(D)
 
@@ -181,7 +181,7 @@ class YW(Operation):
         # initialize previous data path
         self.prev_data_p = data_p
 
-        # yw file path
+        # Yesworkflow file path
         self.yw = ywfile_p
 
         # count data cleaning steps
@@ -189,17 +189,30 @@ class YW(Operation):
 
         self.dir = dir
 
+        # #@params : list
+        self.params =list()
+        # #@in : list
+        self.data_in = list()
+
     def save_temp(self, data_p):
         # save the temporary inter-products
         self.D_0.to_csv(f'{data_p}.csv', index=False)
 
     def del_row(self, row_idx):
         self.counter += 1
+
+        params1 = f"#@param row:{row_idx}\n"
+        params2 = f"#@param Symbol:-\n"
+        params3 = f"#@param wf_step:{self.counter}\n"
+        # this is for head of yw file
+        self.params.extend([params1,params2,params3])
+
         self.yw.write(f"#@begin delete-row @desc delete row {row_idx}\n")
-        self.yw.write(f"#@param row:{row_idx}\n")
-        self.yw.write("#@param Symbol:-\n")
+        self.yw.write(params1)
+        self.yw.write(params2)
         self.D_0 = super().del_row(row_idx)
-        self.yw.write(f"#@param wf_step:{self.counter}\n")
+        self.yw.write(params3)
+
         self.yw.write(f"#@in {self.prev_data_p}\n")
 
         # current data_p
@@ -212,15 +225,22 @@ class YW(Operation):
 
         # update previous path
         self.prev_data_p = current_data_p
+        self.data_in = current_data_p
         return self.D_0
 
     def del_col(self,drop_col):
         self.counter += 1
+
+        params1 = f"#@param column:{drop_col}\n"
+        params2 = "#@param Symbol:-\n"
+        params3 = f"#@param wf_step:{self.counter}\n"
+        self.params.extend([params1, params2, params3])
+
         self.yw.write(f"#@begin delete-column @desc delete column {drop_col}\n")
-        self.yw.write(f"#@param column:{drop_col}\n")
-        self.yw.write("#@param Symbol:-\n")
+        self.yw.write(params1)
+        self.yw.write(params2)
         self.D_0 = super().del_col(drop_col=drop_col)
-        self.yw.write(f"#@param wf_step:{self.counter}\n")
+        self.yw.write(params3)
         self.yw.write(f"#@in {self.prev_data_p}\n")
 
         # current data_p
@@ -233,6 +253,7 @@ class YW(Operation):
 
         # update previous path
         self.prev_data_p = current_data_p
+        self.data_in = current_data_p
         return self.D_0
 
 
@@ -249,15 +270,33 @@ def main():
     dir_dc_steps = f'temp_out_{timetag}'
     os.makedirs(f"{dir_dc_steps}", exist_ok=True)
 
-    # yw file dir
+    # Yesworkflow file dir
     ywfile_out = f'yw_out_{timetag}'
     os.makedirs(f"{ywfile_out}", exist_ok=True)
 
     # column name!!!
-    with open(f'{ywfile_out}/yw.txt', 'w')as f:
+    # transformation part
+    with open(f'{ywfile_out}/yw_func.txt', 'w')as f:
+        # f.write("#@begin Hybrid_Prov_model @desc hybrid provenance model for understanding OpenRefine transformation\n")
+        # f.write("")
         yw = YW(D, f, data_p,dir_dc_steps)
         yw.del_row(2)
         yw.del_col("amount")
+    print(yw.params)
+    params_list = yw.params
+    out = yw.data_in
+    print(out)
+
+    # wf_head + transformation part
+    with open(f'{ywfile_out}/yw.txt', 'w')as f1, open(f'{ywfile_out}/yw_func.txt', 'r')as f2:
+        f1.write("#@begin Hybrid_Prov_model @desc hybrid provenance model for understanding OpenRefine transformation\n")
+        for param in params_list:
+            f1.write(param)
+        f1.write(f"#@in {data_p}\n")
+        f1.write(f"#@out {out}\n")
+        for line in f2:
+            f1.write(line)
+        f1.write("#@end Hybrid_Prov_model")
 
 
 if __name__ == '__main__':

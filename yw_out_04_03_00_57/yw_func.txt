@@ -3,12 +3,12 @@
 #@param Symbol:-
 #@param wf_step:1
 #@in Data_input.csv
-#@out temp_out_04_02_13_42/del_row_2_step_1.csv
+#@out temp_out_04_03_00_57/del_row_2_step_1.csv
 #@end delete-row
 #@begin delete-column @desc delete column amount
 #@param column:amount
 #@param Symbol:-
 #@param wf_step:2
-#@in temp_out_04_02_13_42/del_row_2_step_1.csv
-#@out temp_out_04_02_13_42/del_col_amount_step_2.csv
+#@in temp_out_04_03_00_57/del_row_2_step_1.csv
+#@out temp_out_04_03_00_57/del_col_amount_step_2.csv
 #@end delete-column
