@@ -58,7 +58,6 @@ class Operation:
         # new column name
         # old column name
         # new column position
-        print("#@begin add column")
         record = {'column': f'+ {new_col}'}
         self.dependency.append(record)
         if copy:
@@ -69,6 +68,7 @@ class Operation:
             # new values based on the old column
             for arg in add_col_val:
                 self.D.insert(loc=insert_idx,column=new_col, value=arg)
+        return self.D
 
     def move_col(self,insert_idx,old_idx,new_col,old_col):
         # insert_idx: move the column to new position
@@ -100,9 +100,9 @@ class Operation:
             self.dependency.append(record1)
             self.D = pd.concat([self.D, new_df], axis=1)
 
-    def rename_col(self,new_name,old_col,old_col_idx):
+    def rename_col(self,new_name,old_col, insert_col_idx):
         # table + add/copy column(new name,same position) + delete old column
-        self.add_col(new_name,old_col,old_col_idx,copy=True)
+        self.add_col(new_name,old_col,insert_col_idx,copy=True)
         self.del_col(old_col)
 
     # Cell level
@@ -161,6 +161,9 @@ class Operation:
 
     def topology_(self):
         pass
+
+    def output_data(self, output_p):
+        self.D.to_csv(output_p)
 
 
 class DependencyTree:
@@ -228,6 +231,37 @@ class YW(Operation):
         self.data_in = current_data_p
         return self.D_0
 
+    def add_col(self,new_col,old_col,insert_idx,copy=True,*add_col_val):
+        self.counter += 1
+
+        params1 = f"#@param NewColumn:{new_col}\n"
+        params2 = f"#@param OldColumn:{old_col}\n"
+        params3 = f"#@param InsertColumnIndex:{insert_idx}\n"
+        params4 = f"#@param wf_step:{self.counter}\n"
+        self.params.extend([params1, params2, params3, params4])
+
+        self.yw.write(f"#@begin add-column @desc add column {new_col}\n")
+        self.yw.write(params1)
+        self.yw.write(params2)
+        self.yw.write(params3)
+        self.D_0 = super().add_col(new_col,old_col,insert_idx,copy,*add_col_val)
+        self.yw.write(params4)
+
+        self.yw.write(f"#@in {self.prev_data_p}\n")
+
+        # current data_p
+        current_data_p = f'{self.dir}/add_column_{new_col}_step_{self.counter}.csv'
+        # save the temporary outputs
+        self.save_temp(current_data_p)
+
+        self.yw.write(f"#@out {current_data_p}\n")
+        self.yw.write("#@end add-column\n")
+
+        # update previous path
+        self.prev_data_p = current_data_p
+        self.data_in = current_data_p
+        return self.D_0
+
     def del_col(self,drop_col):
         self.counter += 1
 
@@ -250,6 +284,37 @@ class YW(Operation):
 
         self.yw.write(f"#@out {current_data_p}\n")
         self.yw.write("#@end delete-column\n")
+
+        # update previous path
+        self.prev_data_p = current_data_p
+        self.data_in = current_data_p
+        return self.D_0
+
+    def rename_col(self,new_name,old_col,insert_col_idx):
+        params1 = f"#@param NewColumn:{new_name}\n"
+        params2 = f"#@param OldColumn:{old_col}\n"
+        params3 = f"#@param InsertColumnIndex:{insert_col_idx}\n"
+        params4 = f"#@param wf_step:{self.counter}\n"
+        self.params.extend([params1,params2,params3,params4])
+
+        self.yw.write(f"#@begin rename-column @desc rename column {old_col} into {new_name}\n")
+        self.yw.write(params1)
+        self.yw.write(params2)
+        self.yw.write(params3)
+        # copy
+        self.D_0 = super().rename_col(new_name,old_col,insert_col_idx)
+        # self.D_0 = self.del_col(old_col)
+        self.yw.write(params4)
+
+        self.yw.write(f"#@in {self.prev_data_p}\n")
+
+        # current data_p
+        current_data_p = f'{self.dir}/rename_{old_col}2{new_name}_step_{self.counter}.csv'
+        # save the temporary outputs
+        self.save_temp(current_data_p)
+
+        self.yw.write(f"#@out {current_data_p}\n")
+        self.yw.write("#@end rename-column\n")
 
         # update previous path
         self.prev_data_p = current_data_p
@@ -282,6 +347,7 @@ def main():
         yw = YW(D, f, data_p,dir_dc_steps)
         yw.del_row(2)
         yw.del_col("amount")
+        yw.rename_col("fruit","name",0)
     print(yw.params)
     params_list = yw.params
     out = yw.data_in
@@ -297,6 +363,16 @@ def main():
         for line in f2:
             f1.write(line)
         f1.write("#@end Hybrid_Prov_model")
+
+
+def main2():
+    # INPUT DATA PATH
+    data_p = 'Data_input.csv'
+    output_p ='Data_output.csv'
+    D = pd.read_csv(data_p, index_col=0)
+    op = Operation(D)
+    op.rename_col("fruit","name",2)
+    op.output_data(output_p)
 
 
 if __name__ == '__main__':
